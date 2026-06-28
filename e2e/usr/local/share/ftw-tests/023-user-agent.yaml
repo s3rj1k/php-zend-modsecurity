@@ -1,0 +1,127 @@
+---
+# Test User Agent based blocking
+meta:
+  author: "PHP WAF Team"
+  description: "User-Agent scanner/missing tests"
+  enabled: true
+  name: "023-user-agent.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block curl User-Agent"
+    desc: "curl/ in UA triggers rule 1025"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "curl/8.4.0"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block wget User-Agent"
+    desc: "wget/ in UA triggers rule 1025"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "Wget/1.21"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block python-requests User-Agent"
+    desc: "python-requests/ triggers rule 1025"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "python-requests/2.31.0"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Block nuclei scanner User-Agent"
+    desc: "nuclei in UA triggers rule 1025"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "nuclei -v"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Block gobuster User-Agent"
+    desc: "gobuster triggers rule 1025"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "gobuster/3.6"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 6
+    test_title: "Block missing User-Agent"
+    desc: "No UA header triggers rule 1027"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 7
+    test_title: "Allow normal browser User-Agent"
+    desc: "Browser UA passes rules 1025 and 1027"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 8
+    test_title: "Allow FTW test client User-Agent"
+    desc: "FTW Test Client UA passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

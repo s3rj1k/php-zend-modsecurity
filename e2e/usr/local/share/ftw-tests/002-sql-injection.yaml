@@ -1,0 +1,70 @@
+---
+# Test SQL Injection detection
+meta:
+  author: "PHP WAF Team"
+  description: "SQL injection detection tests"
+  enabled: true
+  name: "002-sql-injection.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "SQL injection in query string - OR 1=1"
+    desc: "SQL injection in query string - OR 1=1"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?id=1%20OR%201=1"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "SQL injection in query string - UNION SELECT"
+    desc: "SQL injection in query string - UNION SELECT"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?id=1%20UNION%20SELECT%20*%20FROM%20users"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "SQL injection in query string - SELECT FROM"
+    desc: "SQL injection in query string - SELECT FROM"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?query=SELECT%20*%20FROM%20users"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "SQL injection in POST body"
+    desc: "SQL injection in POST body"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/x-www-form-urlencoded"
+          data: "id=1%20OR%201=1"
+        output:
+          status: 403

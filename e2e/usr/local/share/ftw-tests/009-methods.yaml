@@ -1,0 +1,72 @@
+---
+# Test HTTP method based blocking and allowed methods
+meta:
+  author: "PHP WAF Team"
+  description: "HTTP method handling tests"
+  enabled: true
+  name: "009-methods.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block PUT requests"
+    desc: "PUT method should be blocked (rule 1010)"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "PUT"
+          uri: "/echo.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Allow GET requests"
+    desc: "GET should pass"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/echo.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 3
+    test_title: "Allow POST requests"
+    desc: "POST should pass when content is not blocked"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"ok":true}'
+        output:
+          status: 200
+
+  - test_id: 4
+    test_title: "Block PUT even with body content"
+    desc: "PUT blocked regardless of body"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "PUT"
+          uri: "/echo.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"x":1}'
+        output:
+          status: 403

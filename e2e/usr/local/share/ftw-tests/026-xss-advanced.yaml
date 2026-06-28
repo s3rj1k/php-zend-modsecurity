@@ -1,0 +1,143 @@
+---
+# Test XSS advanced variants
+meta:
+  author: "PHP WAF Team"
+  description: "XSS event handler / data URI / SVG tests"
+  enabled: true
+  name: "026-xss-advanced.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block onclick event handler"
+    desc: "onclick= triggers rule 1034"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?btn=%3Cbutton%20onclick=alert(1)%3E"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block onmouseover event handler"
+    desc: "onmouseover= triggers rule 1034"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=%3Cdiv%20onmouseover=alert(1)%3E"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block onfocus event handler"
+    desc: "onfocus= triggers rule 1034"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=%3Cinput%20onfocus=alert(1)%3E"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Block onsubmit event handler"
+    desc: "onsubmit= triggers rule 1034"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=%3Cform%20onsubmit=alert(1)%3E"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Block onkeyup event handler"
+    desc: "onkeyup= triggers rule 1034"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=%3Cinput%20onkeyup=alert(1)%3E"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 6
+    test_title: "Block data: text/html URI"
+    desc: "data:text/html triggers rule 1035"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=data:text/html,%3Cscript%3Ealert(1)%3C/script%3E"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 7
+    test_title: "Block SVG with embedded script"
+    desc: "<svg>...<script triggers rule 1036"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=%3Csvg%3E%3Cscript%3Ealert(1)%3C/script%3E%3C/svg%3E"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 8
+    test_title: "Allow benign HTML-like text without handlers"
+    desc: "Plain text with angle brackets but no handler passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?q=less%20than%20and%20greater%20than"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 9
+    test_title: "Allow data URI for non-html media"
+    desc: "data:image/png should pass rule 1035"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?img=data:image/png;base64,iVBOR"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

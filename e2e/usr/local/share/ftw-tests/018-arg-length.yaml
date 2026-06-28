@@ -1,0 +1,55 @@
+---
+# Test Argument length based blocking
+meta:
+  author: "PHP WAF Team"
+  description: "Excessive argument length tests"
+  enabled: true
+  name: "018-arg-length.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block excessively long argument value"
+    desc: "Argument value >256 chars triggers rule 1019"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          # 300 'a' characters
+          uri: "/index.php?data=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Allow moderately long argument value"
+    desc: "Argument value of 100 chars should pass"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          # 100 'b' characters
+          uri: "/index.php?data=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 3
+    test_title: "Allow short argument value"
+    desc: "Short value should pass"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?data=short"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

@@ -1,0 +1,76 @@
+---
+# Test Request body inspection
+meta:
+  author: "PHP WAF Team"
+  description: "Request body inspection tests"
+  enabled: true
+  name: "006-request-body.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block POST with blocked_content in body"
+    desc: "Block POST with blocked_content in body"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"data":"blocked_content"}'
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Allow POST with valid content"
+    desc: "Allow POST with valid content"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"valid":"data"}'
+        output:
+          status: 200
+
+  - test_id: 3
+    test_title: "Block POST with SQL injection in body"
+    desc: "Block POST with SQL injection in body"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/x-www-form-urlencoded"
+          data: "query=SELECT%20*%20FROM%20users"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Block POST with XSS in body"
+    desc: "Block POST with XSS in body"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/x-www-form-urlencoded"
+          data: "comment=%3Cscript%3Ealert(1)%3C%2Fscript%3E"
+        output:
+          status: 403

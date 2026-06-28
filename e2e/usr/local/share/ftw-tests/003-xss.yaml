@@ -1,0 +1,68 @@
+---
+# Test XSS detection
+meta:
+  author: "PHP WAF Team"
+  description: "XSS attack detection tests"
+  enabled: true
+  name: "003-xss.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "XSS with script tag"
+    desc: "XSS with script tag"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?input=%3Cscript%3Ealert(1)%3C/script%3E"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "XSS with javascript: protocol"
+    desc: "XSS with javascript: protocol"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?link=javascript:alert(1)"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "XSS with onerror event handler"
+    desc: "XSS with onerror event handler"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?img=%3Cimg%20onerror=alert(1)%3E"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "XSS with onload event handler"
+    desc: "XSS with onload event handler"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?body=%3Cbody%20onload=alert(1)%3E"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403

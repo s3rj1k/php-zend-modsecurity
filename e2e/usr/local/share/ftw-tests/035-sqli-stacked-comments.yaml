@@ -1,0 +1,128 @@
+---
+# Test SQL stacked queries and comment evasion variants
+meta:
+  author: "PHP WAF Team"
+  description: "SQL stacked/query/comment/LIKE tests"
+  enabled: true
+  name: "035-sqli-stacked-comments.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block stacked SELECT after semicolon"
+    desc: "; SELECT triggers rule 1060"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?id=1;%20SELECT%20*%20FROM%20users"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block stacked DROP after semicolon"
+    desc: "; DROP triggers rule 1060"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?id=1;%20DROP%20TABLE%20users"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block UNION/**/SELECT comment evasion"
+    desc: "UNION/**/SELECT triggers rule 1061"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?id=1%20UNION/**/SELECT%20*"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Block LIKE wildcard injection"
+    desc: "'LIKE '% triggers rule 1062"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?q=%27%20LIKE%20%27%25"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Block XPath injection (or 1=1 --)"
+    desc: "or ... -- triggers rule 1063"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=1%27%20or%20%27a%27=%27a%27--"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 6
+    test_title: "Block XPath bracket expression"
+    desc: "][ triggers rule 1063"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=foo%5D%5Bbar"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 7
+    test_title: "Allow benign text with semicolon but no SQL keyword"
+    desc: "Semicolon in plain text passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?text=hello;%20world"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 8
+    test_title: "Allow benign LIKE word usage"
+    desc: "Word 'like' without injection passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?word=like%20this"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

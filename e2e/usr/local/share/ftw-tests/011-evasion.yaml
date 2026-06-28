@@ -1,0 +1,115 @@
+---
+# Test Evasion attempts case variation, encoding, and edge cases
+meta:
+  author: "PHP WAF Team"
+  description: "Evasion and edge-case tests"
+  enabled: true
+  name: "011-evasion.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block mixed-case UNION SELECT"
+    desc: "Case-insensitive regex should catch UnIoN SeLeCt (rule 1012)"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?id=1%20UnIoN%20SeLeCt%20password"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block uppercase UNION SELECT"
+    desc: "Uppercase variant caught by case-insensitive rule"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?id=1%20UNION%20SELECT%20*%20FROM%20users"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Allow SQL-like but non-matching query"
+    desc: "'union select' as separate non-keyword usage should not match"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?word=community"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 4
+    test_title: "Block path traversal with mixed encoding"
+    desc: "Mix of encoded and literal ../ should still be caught"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?file=..%2f..%2fetc%2fpasswd"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Empty POST body is allowed"
+    desc: "Empty body should not trigger body rules"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: ""
+        output:
+          status: 200
+
+  - test_id: 6
+    test_title: "Request with no query string is allowed"
+    desc: "Bare URI should pass"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 7
+    test_title: "Very long benign query string is allowed"
+    desc: "Large payload without attack signatures should not be blocked"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?data=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

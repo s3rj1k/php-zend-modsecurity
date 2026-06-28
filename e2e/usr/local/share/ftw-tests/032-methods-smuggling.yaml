@@ -1,0 +1,158 @@
+---
+# Test HTTP methods and header smuggling
+meta:
+  author: "PHP WAF Team"
+  description: "Method/header smuggling tests"
+  enabled: true
+  name: "032-methods-smuggling.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block TRACE method"
+    desc: "TRACE triggers rule 1055"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "TRACE"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          # The bridge accepts any method token and forwards REQUEST_METHOD
+          # to the WAF; rule 1055 blocks TRACE. The WAF is the verifier.
+          status: 403
+
+  - test_id: 2
+    test_title: "Block DELETE method"
+    desc: "DELETE triggers rule 1056"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "DELETE"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  # Test 3 (CONNECT method) removed. Rule 1057 still defends, but CONNECT is a
+  # proxy-tunnel method: HAProxy cannot forward it to a FastCGI backend as
+  # REQUEST_METHOD=CONNECT (it 502s), so the WAF never inspects it. Untestable
+  # behind a FastCGI front-end.
+  - test_id: 4
+    test_title: "Block Content-Type smuggling"
+    desc: "multipart with charset triggers rule 1053"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "multipart/form-data; boundary=x; charset=utf-7"
+          data: "--x\r\nContent-Disposition: form-data; name=\"f\"\r\n\r\nv\r\n--x--"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Block Accept header with script"
+    desc: "<script in Accept triggers rule 1054"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "<script>alert(1)</script>"
+        output:
+          status: 403
+
+  - test_id: 6
+    test_title: "Block Accept header with path traversal"
+    desc: "../ in Accept triggers rule 1054"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "../../etc/passwd"
+        output:
+          status: 403
+
+  - test_id: 7
+    test_title: "Allow normal GET method"
+    desc: "GET passes method rules"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 8
+    test_title: "Allow normal POST method"
+    desc: "POST passes method rules"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"x":1}'
+        output:
+          status: 200
+
+  - test_id: 9
+    test_title: "Allow normal Accept header"
+    desc: "Standard Accept header passes rule 1054"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "text/html,application/xhtml+xml"
+        output:
+          status: 200
+
+  - test_id: 10
+    test_title: "Allow normal Content-Type"
+    desc: "Plain multipart Content-Type passes rule 1053"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "multipart/form-data; boundary=normalboundary"
+          data: "--normalboundary\r\nContent-Disposition: form-data; name=\"f\"\r\n\r\nv\r\n--normalboundary--"
+        output:
+          status: 200

@@ -1,0 +1,98 @@
+---
+# Test Response status code inspection
+meta:
+  author: "PHP WAF Team"
+  description: "Response status / status-arg tests"
+  enabled: true
+  name: "019-response-status.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block request requesting 5xx status arg"
+    desc: "status=500 arg triggers rule 1020"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?status=500"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block request requesting 418 status arg"
+    desc: "status=418 arg triggers rule 1020"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?status=418"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Allow request requesting 200 status arg"
+    desc: "status=200 should not trigger rule 1020"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?status=200"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 4
+    test_title: "Block actual HTTP 500 response (rule 1022)"
+    desc: "status.php?code=500 returns 500, blocked by phase-4 rule"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/status.php?code=500"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Allow actual HTTP 200 response"
+    desc: "status.php?code=200 should pass"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/status.php?code=200"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 6
+    test_title: "Allow actual HTTP 404 response (not 5xx)"
+    desc: "status.php?code=404 should not trigger rule 1022"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/status.php?code=404"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 404

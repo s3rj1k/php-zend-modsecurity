@@ -1,0 +1,197 @@
+---
+# Test Comprehensive benign regression suite
+# These requests MUST pass (200). They guard against false positives when
+# rules are tightened. If any of these break, a rule is too broad.
+meta:
+  author: "PHP WAF Team"
+  description: "Comprehensive benign traffic control"
+  enabled: true
+  name: "034-benign-comprehensive.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Root path passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/", headers: {User-Agent: "FTW Test Client", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 2
+    test_title: "index.php with no args passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php", headers: {User-Agent: "FTW Test Client", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 3
+    test_title: "Numeric id passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php?id=42", headers: {User-Agent: "FTW Test Client", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 4
+    test_title: "Alphanumeric search query passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php?q=modsecurity+rules+guide", headers: {User-Agent: "FTW Test Client", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 5
+    test_title: "URL with hyphenated slug passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php?slug=how-to-configure-waf", headers: {User-Agent: "FTW Test Client", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 6
+    test_title: "Email-like value passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php?email=user@example.com", headers: {User-Agent: "FTW Test Client", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 7
+    test_title: "UUID value passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php?id=550e8400-e29b-41d4-a716-446655440000", headers: {User-Agent: "FTW Test Client", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 8
+    test_title: "ISO date value passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php?date=2024-06-15", headers: {User-Agent: "FTW Test Client", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 9
+    test_title: "JSON POST with nested object passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "POST", uri: "/post.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Content-Type: "application/json"}, data: '{"user":{"name":"Alice","roles":["admin","editor"]}}'}
+        output: {status: 200}
+
+  - test_id: 10
+    test_title: "Urlencoded POST with multiple fields passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "POST", uri: "/post.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Content-Type: "application/x-www-form-urlencoded"}, data: "name=Bob&email=bob%40test.com&age=25"}
+        output: {status: 200}
+
+  - test_id: 11
+    test_title: "Session cookie passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Cookie: "PHPSESSID=abc123def456ghi789"}}
+        output: {status: 200}
+
+  - test_id: 12
+    test_title: "Multiple benign cookies pass"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Cookie: "theme=dark; lang=en; consent=true"}}
+        output: {status: 200}
+
+  - test_id: 13
+    test_title: "Chrome User-Agent passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php", headers: {User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 14
+    test_title: "Firefox User-Agent passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php", headers: {User-Agent: "Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 15
+    test_title: "Safari User-Agent passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php", headers: {User-Agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 16
+    test_title: "Google Referer passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Referer: "https://www.google.com/"}}
+        output: {status: 200}
+
+  - test_id: 17
+    test_title: "Internal site Referer passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Referer: "https://example.com/page"}}
+        output: {status: 200}
+
+  - test_id: 18
+    test_title: "Public X-Forwarded-For passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", X-Forwarded-For: "198.51.100.42"}}
+        output: {status: 200}
+
+  - test_id: 19
+    test_title: "Accept-Language header passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Accept-Language: "en-US,en;q=0.9"}}
+        output: {status: 200}
+
+  - test_id: 20
+    test_title: "Accept-Encoding header passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Accept-Encoding: "gzip, deflate, br"}}
+        output: {status: 200}
+
+  - test_id: 21
+    test_title: "Bearer token Authorization passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/headers.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Authorization: "Bearer abc.def.ghi"}}
+        output: {status: 200}
+
+  - test_id: 22
+    test_title: "Basic auth passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/headers.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Authorization: "Basic dXNlcjpwYXNz"}}
+        output: {status: 200}
+
+  - test_id: 23
+    test_title: "Status 200 response passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/status.php?code=200", headers: {User-Agent: "FTW Test Client", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 24
+    test_title: "Clean response body passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/leak.php?type=clean", headers: {User-Agent: "FTW Test Client", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 25
+    test_title: "Multiple benign query params pass"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php?category=books&page=3&sort=price&order=asc", headers: {User-Agent: "FTW Test Client", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 26
+    test_title: "JSON with array values passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "POST", uri: "/post.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Content-Type: "application/json"}, data: '{"tags":["php","security","waf"],"count":3}'}
+        output: {status: 200}
+
+  - test_id: 27
+    test_title: "Long benign URL-encoded value passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php?desc=This%20is%20a%20perfectly%20normal%20description%20string%20used%20for%20testing%20the%20WAF%20with%20harmless%20content%20that%20should%20not%20trigger%20any%20rules%20at%20all", headers: {User-Agent: "FTW Test Client", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 28
+    test_title: "Normal Accept header passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Accept: "text/html,application/xhtml+xml,application/xml;q=0.9"}}
+        output: {status: 200}
+
+  - test_id: 29
+    test_title: "Wildcard Accept media range passes"
+    desc: "text/* must not trigger rule 1054"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Accept: "text/*, application/json"}}
+        output: {status: 200}
+
+  - test_id: 30
+    test_title: "Normal Content-Type for POST passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "POST", uri: "/post.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Content-Type: "application/x-www-form-urlencoded"}, data: "field=value"}
+        output: {status: 200}
+
+  - test_id: 31
+    test_title: "Echo endpoint reflection passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/echo.php?foo=bar", headers: {User-Agent: "FTW Test Client", Host: "localhost"}}
+        output: {status: 200}

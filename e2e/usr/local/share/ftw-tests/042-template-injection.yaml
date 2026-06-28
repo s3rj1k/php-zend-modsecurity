@@ -1,0 +1,220 @@
+---
+# Test Template and expression language injection
+meta:
+  author: "PHP WAF Team"
+  description: "EL/OGNL/SpEL/Freemarker/SSTI tests"
+  enabled: true
+  name: "042-template-injection.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block EL injection (${...})"
+    desc: "${a triggers rule 1094"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=%24%7BapplicationScope"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block OGNL injection (%{...})"
+    desc: "%{ triggers rule 1095"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=%25%7B1%2B1%7D"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block OGNL #{} injection"
+    desc: "#{ triggers rule 1095"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=%23%7B1%7D"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Block OGNL @java injection"
+    desc: "@java triggers rule 1095"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=%40java.lang.Runtime"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Block SpEL T(java) injection"
+    desc: "T(java. triggers rule 1096"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=T(java.lang.Runtime)"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 6
+    test_title: "Block SpEL new java injection"
+    desc: "new java. triggers rule 1096"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=new%20java.lang.ProcessBuilder"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 7
+    test_title: "Block Freemarker <#assign>"
+    desc: "<#assign triggers rule 1097"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=%3C%23assign%20x=1%3E"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 8
+    test_title: "Block Freemarker #stop"
+    desc: "#stop triggers rule 1097"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=%23stop"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 9
+    test_title: "Block ASP tag injection"
+    desc: "<% triggers rule 1098"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=%3C%25Response.Write%201%25%3E"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 10
+    test_title: "Block PHP short echo tag"
+    desc: "<?= triggers rule 1099"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=%3C%3F%3Dphpinfo()"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 11
+    test_title: "Block PHP open tag"
+    desc: "<?php triggers rule 1100"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=%3C%3Fphp%20echo%201"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 12
+    test_title: "Allow benign text with curly braces but not template syntax"
+    desc: "Plain text passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?q=function%20parameters"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 13
+    test_title: "Allow benign text mentioning java without injection"
+    desc: "Plain word java passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?lang=javascript"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 14
+    test_title: "Allow benign JSON POST"
+    desc: "Normal JSON passes template rules"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/api.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"message":"hello world"}'
+        output:
+          status: 200

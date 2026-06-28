@@ -1,0 +1,68 @@
+---
+# Test Server side template injection detection
+meta:
+  author: "PHP WAF Team"
+  description: "SSTI pattern tests"
+  enabled: true
+  name: "017-ssti.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block Twig/Jinja {{ }} expression"
+    desc: "{{7*7}} in arg triggers rule 1018"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?name=%7B%7B7*7%7D%7D"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block Jinja {% %} statement"
+    desc: "{% if %} in arg triggers rule 1018"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?tpl=%7B%25%20if%20x%20%25%7D"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block Smarty ${ } expression"
+    desc: "${...} in arg triggers rule 1018"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?tpl=%24%7B7*7%7D"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Allow benign template-like text without markers"
+    desc: "Plain JSON-like value should not match"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?data=hello-world"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

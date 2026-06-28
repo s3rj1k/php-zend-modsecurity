@@ -1,0 +1,305 @@
+name: ci
+
+# Pipeline against the HAProxy + php fpm (waf extension) stack in e2e/. Each
+# stage gates the next.
+#   static analysis  clang tidy, scan build, gcc fanalyzer, shellcheck
+#   compile          builds + loads the extension across a PHP matrix
+#   ftw tests        builds the Docker stack, runs the go-ftw YAML suite
+#   benchmark        oha across disabled / enabled norules / enabled rules
+#   benchmark rps    same scenarios rate limited to 4000 req/s (10 iterations)
+# GitHub runners are noisy, treat benchmarks as order of magnitude only.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-analysis:
+    name: clang-tidy / scan-build / gcc-analyzer
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build analyzer image
+        working-directory: e2e
+        run: docker build -f Dockerfile.analyze -t waf-analyze ..
+
+      - name: Run static analysis
+        working-directory: e2e
+        run: docker run --rm -v "$(pwd)/../results:/results" waf-analyze
+
+      - name: Upload analysis results on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: static-analysis-results
+          path: results/
+          if-no-files-found: ignore
+
+  compile:
+    name: Build & load extension (PHP ${{ matrix.php }})
+    needs: static-analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4', '8.5']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: none
+          tools: phpize, php-config
+          coverage: none
+
+      - name: Install libmodsecurity build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmodsecurity-dev libmodsecurity3 autoconf automake libtool pkg-config
+
+      - name: Verify toolchain
+        run: |
+          php -v
+          php-config --includes
+          phpize -v
+          pkg-config --modversion libmodsecurity || echo "libmodsecurity pkg-config not found (continuing)"
+
+      - name: phpize
+        working-directory: src/php_waf
+        run: phpize
+
+      - name: configure
+        working-directory: src/php_waf
+        run: ./configure --enable-waf --with-modsecurity
+
+      - name: make
+        working-directory: src/php_waf
+        run: make -j"$(nproc)"
+
+      - name: Extension loads
+        working-directory: src/php_waf
+        run: |
+          php -d extension=modules/waf.so -m | grep -q '^waf$'
+          echo "waf extension loaded successfully"
+
+      - name: Verify INI directives registered
+        working-directory: src/php_waf
+        run: |
+          php -d extension=modules/waf.so -i | grep -c "waf\." | grep -q '[1-9]'
+          echo "INI directives present"
+
+      - name: Verify waf is inert when disabled
+        working-directory: src/php_waf
+        run: |
+          php -d extension=modules/waf.so -r 'echo "ok\n";' | grep -q '^ok$'
+
+      - name: Verify modsec_block_status default applies (no per-rule status)
+        working-directory: src/php_waf
+        run: |
+          printf '[waf]\nwaf.enabled = 1\nwaf.modsec_block_status = 418\nwaf.modsec_rules_inline = "SecRuleEngine On\\nSecRule ARGS \"@streq blockme\" \"id:9999,phase:2,deny,msg:test\""\n' > /tmp/waf_blockstatus.ini
+          php -c /tmp/waf_blockstatus.ini -d extension=modules/waf.so -r 'echo "loaded\n";' | grep -q '^loaded$'
+          echo "block_status INI parses and loads"
+
+  ftw-tests:
+    name: FTW WAF tests
+    needs: compile
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: e2e
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # Builds the image, seeds enabled rules config, starts the stack.
+      - name: Build + start stack
+        run: ./run.sh up
+
+      - name: Verify the waf extension loaded
+        run: docker compose exec -T php-fpm php -m | grep -q '^waf$'
+
+      - name: Run go-ftw tests
+        run: ./run.sh test
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: |
+          echo "===== bridge logs ====="
+          docker compose logs bridge || true
+          echo "===== php-fpm logs ====="
+          docker compose logs php-fpm || true
+          echo "===== ModSecurity debug log ====="
+          docker compose exec -T php-fpm sh -c 'cat /var/log/modsec_debug.log 2>/dev/null | tail -200' || true
+          echo "===== ModSecurity audit log ====="
+          docker compose exec -T php-fpm sh -c 'cat /var/log/modsec_audit.log 2>/dev/null | tail -200' || true
+
+      - name: Export ModSecurity logs on failure
+        if: failure()
+        run: |
+          mkdir -p logs
+          docker compose exec -T php-fpm sh -c 'cat /var/log/modsec_debug.log 2>/dev/null' > logs/modsec_debug.log || true
+          docker compose exec -T php-fpm sh -c 'cat /var/log/modsec_audit.log 2>/dev/null' > logs/modsec_audit.log || true
+          docker compose logs bridge > logs/bridge.log 2>&1 || true
+          docker compose logs php-fpm > logs/php-fpm.log 2>&1 || true
+
+      - name: Upload logs artifact on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: waf-logs
+          path: e2e/logs/
+          if-no-files-found: ignore
+
+      - name: Tear down
+        if: always()
+        run: ./run.sh down
+
+  # Rate limited variant of the overhead benchmark OHA_QPS=4000, 10 iterations.
+  # Separate job so its report table is not mixed with the unrestricted rows.
+  benchmark-rps:
+    name: oha overhead benchmark (4000 rps)
+    needs: ftw-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      OHA_QPS: "4000"
+      OHA_ITERATIONS: "10"
+    defaults:
+      run:
+        working-directory: e2e
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # `up` builds the image (cached) and starts the stack. Each bench step
+      # swaps its own config.
+      - name: Build + start bridge + php-fpm
+        run: ./run.sh up
+
+      # Each scenario activates its config, restarts php fpm, runs the pre
+      # flight, then oha for 10 iterations at 4000 req/s. continue on error so
+      # one bad scenario still lets the others run.
+      - name: Bench (4000 rps) — disabled
+        continue-on-error: true
+        run: ./run.sh bench 20 disabled
+
+      - name: Bench (4000 rps) — enabled-norules
+        continue-on-error: true
+        run: ./run.sh bench 20 enabled-norules
+
+      - name: Bench (4000 rps) — enabled-rules
+        continue-on-error: true
+        run: ./run.sh bench 20 enabled-rules
+
+      # Render the comparison + per scenario details. Always runs.
+      - name: Report
+        if: always()
+        run: |
+          ./run.sh report
+          cat results/summary.md
+          cat results/summary.md >> "$GITHUB_STEP_SUMMARY"
+          echo
+          echo "_Rate limited at 4000 req/s GitHub runners are noisy treat as order of magnitude._" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-results-rps4000
+          path: |
+            e2e/results/summary.md
+            e2e/results/*.md
+            e2e/results/*.txt
+          if-no-files-found: error
+
+      - name: Tear down
+        if: always()
+        run: ./run.sh down
+
+  benchmark:
+    name: oha overhead benchmark
+    needs: ftw-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: e2e
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # `up` builds the image (cached) and starts the stack. Each bench step
+      # swaps its own config.
+      - name: Build + start bridge + php-fpm
+        run: ./run.sh up
+
+      # Each scenario activates its config, restarts php fpm, runs the pre
+      # flight, then oha for N iterations. continue on error so one bad
+      # scenario still lets the others run.
+      - name: Bench — disabled
+        continue-on-error: true
+        run: ./run.sh bench 20 disabled
+
+      - name: Bench — enabled-norules
+        continue-on-error: true
+        run: ./run.sh bench 20 enabled-norules
+
+      - name: Bench — enabled-rules
+        continue-on-error: true
+        run: ./run.sh bench 20 enabled-rules
+
+      # Render the comparison + per scenario details. Always runs.
+      - name: Report
+        if: always()
+        run: |
+          ./run.sh report
+          cat results/summary.md
+          cat results/summary.md >> "$GITHUB_STEP_SUMMARY"
+          echo
+          echo "_Unrestricted rate (saturation) GitHub runners are noisy treat as order of magnitude._" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-results
+          path: |
+            e2e/results/summary.md
+            e2e/results/*.md
+            e2e/results/*.txt
+          if-no-files-found: error
+
+      - name: Tear down
+        if: always()
+        run: ./run.sh down

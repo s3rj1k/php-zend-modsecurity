@@ -1,0 +1,37 @@
+# Static analysis for the PHP WAF extension. Runs clang scan build, clang
+# tidy, and shellcheck against the C codebase.
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Analysis tools, build deps, PHP dev headers, modsecurity headers
+RUN apt-get update && apt-get install -y \
+    # analysis tools
+    clang-tools \
+    clang-tidy \
+    shellcheck \
+    # build deps
+    build-essential \
+    autoconf \
+    automake \
+    libtool \
+    pkg-config \
+    # PHP dev headers
+    php-dev \
+    # modsecurity headers
+    libmodsecurity-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /analyze
+RUN mkdir -p /results
+
+# Copy source
+COPY src/php_waf/ /analyze/
+
+# Copy analysis script (mirrors /usr/local/bin/analyze.sh on target)
+COPY e2e/usr/local/bin/analyze.sh /usr/local/bin/analyze.sh
+RUN chmod +x /usr/local/bin/analyze.sh
+
+# Run analysis
+CMD ["/usr/local/bin/analyze.sh"]

@@ -1,0 +1,83 @@
+---
+# Test Local file inclusion via PHP stream wrappers
+meta:
+  author: "PHP WAF Team"
+  description: "LFI stream wrapper tests"
+  enabled: true
+  name: "015-lfi.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block php:// stream wrapper"
+    desc: "php:// in arg triggers rule 1016"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?file=php://filter/resource=/etc/passwd"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block file:// stream wrapper"
+    desc: "file:// in arg triggers rule 1016"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?file=file:///etc/passwd"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block data:// stream wrapper"
+    desc: "data:// in arg triggers rule 1016"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?file=data://text/plain;base64,SGVsbG8="
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Block expect:// stream wrapper"
+    desc: "expect:// in arg triggers rule 1016"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?file=expect://id"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Allow normal file path without wrapper"
+    desc: "Regular path value should not match"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?file=reports/2024/q1.pdf"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

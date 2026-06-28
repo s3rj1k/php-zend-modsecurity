@@ -1,0 +1,85 @@
+---
+# Test Chained rules and parameter name inspection
+meta:
+  author: "PHP WAF Team"
+  description: "Chained rule and ARGS_NAMES tests"
+  enabled: true
+  name: "012-chaining.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block when chained header and arg both match"
+    desc: "X-Chain-Trigger: yes AND chain_target=activate triggers rule 1014"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/echo.php?chain_target=activate"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            X-Chain-Trigger: "yes"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Allow when only the header matches (chain incomplete)"
+    desc: "Header present but arg missing - chain should not fire"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/echo.php?other=value"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            X-Chain-Trigger: "yes"
+        output:
+          status: 200
+
+  - test_id: 3
+    test_title: "Allow when only the arg matches (chain incomplete)"
+    desc: "Arg present but header missing - chain should not fire"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/echo.php?chain_target=activate"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 4
+    test_title: "Block forbidden parameter name (ARGS_NAMES, rule 1013)"
+    desc: "Presence of parameter named 'forbidden_param' should block"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/echo.php?forbidden_param=anything"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Allow normal parameter names"
+    desc: "Regular parameter names should pass"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/echo.php?normal_param=value"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

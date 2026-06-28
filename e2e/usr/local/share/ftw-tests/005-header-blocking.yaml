@@ -1,0 +1,103 @@
+---
+# Test Header based blocking
+meta:
+  author: "PHP WAF Team"
+  description: "Header-based blocking tests"
+  enabled: true
+  name: "005-header-blocking.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block request with X-Block-Me header"
+    desc: "Block request with X-Block-Me header"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            X-Block-Me: "true"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Allow request without X-Block-Me header"
+    desc: "Allow request without X-Block-Me header"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 3
+    test_title: "Block request with suspicious User-Agent - sqlmap"
+    desc: "Block request with suspicious User-Agent - sqlmap"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "sqlmap/1.0"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Block request with suspicious User-Agent - nikto"
+    desc: "Block request with suspicious User-Agent - nikto"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "nikto/2.1.6"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 6
+    test_title: "Block request with suspicious User-Agent - masscan"
+    desc: "Block request with suspicious User-Agent - masscan"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "masscan/1.0"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 7
+    test_title: "Admin path should be blocked"
+    desc: "Admin path should be blocked"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/admin/login.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          # The bridge routes non-existent .php to the index.php front
+          # controller (HAProxy front-controller fallback to index.php), so PHP
+          # userland runs, the WAF hook fires, and rule 1006 blocks /admin/
+          # access with 403.
+          status: 403

@@ -1,0 +1,111 @@
+---
+# Test Referer and Host header inspection
+meta:
+  author: "PHP WAF Team"
+  description: "Referer/Host header tests"
+  enabled: true
+  name: "024-referer-host.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block spam Referer (casino)"
+    desc: "casino. in Referer triggers rule 1026"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Referer: "https://casino.example.com/"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block spam Referer (viagra)"
+    desc: "viagra. in Referer triggers rule 1026"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Referer: "http://viagra-cheap.biz/"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block spam Referer (porn)"
+    desc: "porn. in Referer triggers rule 1026"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Referer: "http://porn.example.org"
+        output:
+          status: 403
+
+  # Tests 4 & 5 (Host header injection via %0d%0a / absolute URL) removed.
+  # Rule 1028 still defends against these, but they cannot be e2e-tested
+  # behind any real HTTP front-end: HAProxy (like nginx/Apache) strictly
+  # validates the Host header (it drives routing) and returns 400 for a
+  # malformed value (a literal % or an absolute-URL form) BEFORE the request
+  # reaches the WAF. accept-unsafe-violations-in-http-request does not relax
+  # Host validation. This is the same impossible-behind-a-server class as the
+  # removed rule 1116 (raw CRLF in a header value).
+  - test_id: 6
+    test_title: "Block malformed Referer (no scheme)"
+    desc: "Referer without : triggers rule 1058"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Referer: "just-a-string"
+        output:
+          status: 403
+
+  - test_id: 7
+    test_title: "Allow legitimate Referer"
+    desc: "Valid https Referer passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Referer: "https://www.google.com/search?q=test"
+        output:
+          status: 200
+
+  - test_id: 8
+    test_title: "Allow normal Host header"
+    desc: "Plain localhost Host passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

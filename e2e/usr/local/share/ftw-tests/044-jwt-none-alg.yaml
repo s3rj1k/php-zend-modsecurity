@@ -1,0 +1,72 @@
+---
+# Test JWT none algorithm bypass
+meta:
+  author: "PHP WAF Team"
+  description: "JWT alg bypass tests"
+  enabled: true
+  name: "044-jwt-none-alg.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block JWT with none algorithm (empty signature)"
+    desc: "Trailing dot (no signature) triggers rule 1087"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/headers.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Authorization: "Bearer eyJhbGciOiJub25lIn0.eyJzdWIiOiJhZG1pbiJ9."
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block JWT none alg variant with whitespace"
+    desc: "Empty signature triggers rule 1087"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/headers.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Authorization: "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ1c2VyIjoiYWRtaW4ifQ."
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Allow properly signed JWT (HS256)"
+    desc: "JWT with real signature passes rule 1087"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/headers.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Authorization: "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+        output:
+          status: 200
+
+  - test_id: 4
+    test_title: "Allow non-JWT Bearer token"
+    desc: "Opaque token passes rule 1087"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/headers.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Authorization: "Bearer abc123opaque"
+        output:
+          status: 200

@@ -1,0 +1,98 @@
+---
+# Test Response body leak variants
+meta:
+  author: "PHP WAF Team"
+  description: "Response leak tests (PHP errors/paths/secrets/PAN)"
+  enabled: true
+  name: "040-response-leaks.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block server path disclosure in response"
+    desc: "/var/www/ in response triggers rule 1081"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/api.php?action=leak_path"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block secret leakage in response"
+    desc: "AWS_SECRET_ACCESS_KEY in response triggers rule 1082"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/api.php?action=leak_secret"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block credit card number in response"
+    desc: "PAN 4111-... in response triggers rule 1083"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/api.php?action=leak_pan"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Block blocked_response_content in response (rule 1008)"
+    desc: "response.php?action=blocked triggers rule 1008"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/response.php?action=blocked"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Allow clean API response"
+    desc: "Default api.php response passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/api.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 6
+    test_title: "Allow clean response.php response"
+    desc: "response.php?action=normal passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/response.php?action=normal"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

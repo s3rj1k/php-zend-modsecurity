@@ -1,0 +1,129 @@
+---
+# Test Comprehensive benign regression suite #2
+# Guards false positives across the expanded rule set (1080 1100).
+meta:
+  author: "PHP WAF Team"
+  description: "Benign traffic control #2"
+  enabled: true
+  name: "043-benign-comprehensive-2.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "GraphQL query for users passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "POST", uri: "/api.php?action=graphql", headers: {User-Agent: "FTW Test Client", Host: "localhost", Content-Type: "application/json"}, data: '{"query":"query { users { id name email } }"}'}
+        output: {status: 200}
+
+  - test_id: 2
+    test_title: "GraphQL mutation with single operation passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "POST", uri: "/api.php?action=graphql", headers: {User-Agent: "FTW Test Client", Host: "localhost", Content-Type: "application/json"}, data: '{"query":"mutation { updateUser(id:1, name:\"x\") }"}'}
+        output: {status: 200}
+
+  - test_id: 3
+    test_title: "Normal user registration JSON passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "POST", uri: "/api.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Content-Type: "application/json"}, data: '{"username":"newuser","password":"hash","email":"new@test.com"}'}
+        output: {status: 200}
+
+  - test_id: 4
+    test_title: "JSON with nested arrays passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "POST", uri: "/api.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Content-Type: "application/json"}, data: '{"matrix":[[1,2],[3,4]],"meta":{"version":2}}'}
+        output: {status: 200}
+
+  - test_id: 5
+    test_title: "Bearer JWT token passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/headers.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Authorization: "Bearer eyJhbGci.eyJzdWI.signature"}}
+        output: {status: 200}
+
+  - test_id: 6
+    test_title: "Text with single quotes passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php?q=it's%20a%20test", headers: {User-Agent: "FTW Test Client", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 7
+    test_title: "Text with parentheses passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php?q=function(x)%20test", headers: {User-Agent: "FTW Test Client", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 8
+    test_title: "URL with port number passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php?callback=http://localhost:3000/cb", headers: {User-Agent: "FTW Test Client", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 9
+    test_title: "JSON with boolean false passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "POST", uri: "/api.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Content-Type: "application/json"}, data: '{"active":false,"count":0}'}
+        output: {status: 200}
+
+  - test_id: 10
+    test_title: "Normal Origin header passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Origin: "http://localhost:3000"}}
+        output: {status: 200}
+
+  - test_id: 11
+    test_title: "Accept with quality values passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Accept: "text/html;q=0.9, application/json;q=0.8"}}
+        output: {status: 200}
+
+  - test_id: 12
+    test_title: "DNT header passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", DNT: "1"}}
+        output: {status: 200}
+
+  - test_id: 13
+    test_title: "X-Requested-With header passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", X-Requested-With: "XMLHttpRequest"}}
+        output: {status: 200}
+
+  - test_id: 14
+    test_title: "Cache-Control header passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Cache-Control: "no-cache"}}
+        output: {status: 200}
+
+  - test_id: 15
+    test_title: "Normal GET with multiple params passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/index.php?category=books&page=2&sort=asc", headers: {User-Agent: "FTW Test Client", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 16
+    test_title: "Urlencoded POST with normal fields passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "POST", uri: "/post.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Content-Type: "application/x-www-form-urlencoded"}, data: "username=john&password=secret123"}
+        output: {status: 200}
+
+  - test_id: 17
+    test_title: "JSON with null values passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "POST", uri: "/api.php", headers: {User-Agent: "FTW Test Client", Host: "localhost", Content-Type: "application/json"}, data: '{"name":null,"value":"ok"}'}
+        output: {status: 200}
+
+  - test_id: 18
+    test_title: "Clean api.php response passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/api.php", headers: {User-Agent: "FTW Test Client", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 19
+    test_title: "Headers reflection endpoint passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/headers.php", headers: {User-Agent: "FTW Test Client", Host: "localhost"}}
+        output: {status: 200}
+
+  - test_id: 20
+    test_title: "Echo endpoint with cookie passes"
+    stages:
+      - input: {dest_addr: "bridge", port: 80, method: "GET", uri: "/echo.php?ref=abc", headers: {User-Agent: "FTW Test Client", Host: "localhost", Cookie: "session=xyz"}}
+        output: {status: 200}

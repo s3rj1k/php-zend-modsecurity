@@ -1,0 +1,59 @@
+---
+# Test XML external entity (XXE) detection
+meta:
+  author: "PHP WAF Team"
+  description: "XXE pattern tests in request body"
+  enabled: true
+  name: "020-xxe.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block DOCTYPE declaration in body"
+    desc: "<!DOCTYPE in body triggers rule 1023"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/xml"
+          data: "<?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><foo>&xxe;</foo>"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block ENTITY declaration in body"
+    desc: "<!ENTITY in body triggers rule 1023"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/xml"
+          data: "<?xml version=\"1.0\"?><root><!ENTITY x SYSTEM \"http://evil\">x</root>"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Allow plain XML without entity declarations"
+    desc: "Clean XML body should not match"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/xml"
+          data: "<?xml version=\"1.0\"?><root><item>value</item></root>"
+        output:
+          status: 200

@@ -1,0 +1,173 @@
+---
+# Test SSRF dangerous protocols and PHP wrappers
+meta:
+  author: "PHP WAF Team"
+  description: "SSRF/protocol/wrapper tests"
+  enabled: true
+  name: "037-ssrf-protocols.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block gopher:// SSRF"
+    desc: "gopher:// triggers rule 1066"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?url=gopher://evil:25/1mail"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block dict:// SSRF"
+    desc: "dict:// triggers rule 1066"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?url=dict://evil:11211/stat"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block tftp:// SSRF"
+    desc: "tftp:// triggers rule 1066"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?url=tftp://evil/file"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Block ldap:// SSRF"
+    desc: "ldap:// triggers rule 1066"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?url=ldap://evil/dc=x"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Block SSH:// SSRF"
+    desc: "ssh:// triggers rule 1066"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?url=ssh://evil"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 6
+    test_title: "Block IPv6 loopback SSRF"
+    desc: "http://[::1] triggers rule 1067"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?url=http://%5B::1%5D/admin"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 7
+    test_title: "Block php:// wrapper in URI"
+    desc: "php:// in URI triggers rule 1068"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/php://filter/resource=/etc/passwd"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 8
+    test_title: "Block data:// wrapper in URI"
+    desc: "data:// in URI triggers rule 1068"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/data://text/plain;base64,SGVsbG8="
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 9
+    test_title: "Block phar:// wrapper in URI"
+    desc: "phar:// in URI triggers rule 1068"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/phar://evil.phar/file"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 10
+    test_title: "Allow external https URL in arg"
+    desc: "Public https URL passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?url=https://api.github.com/users/octocat"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 11
+    test_title: "Allow normal relative URI"
+    desc: "Regular path passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?page=about"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

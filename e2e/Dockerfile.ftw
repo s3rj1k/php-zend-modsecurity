@@ -1,0 +1,22 @@
+# go-ftw (https://github.com/coreruleset/go-ftw) WAF test runner.
+# --debug prints the exact request bytes sent and response received per stage.
+FROM debian:stable-slim
+
+ARG TARGETARCH
+ARG FTW_VERSION=2.4.0
+
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN case "$TARGETARCH" in \
+      amd64) arch=amd64 ;; \
+      arm64) arch=arm64 ;; \
+      *) echo "unsupported arch: $TARGETARCH"; exit 1 ;; \
+    esac && \
+    curl -fsSL "https://github.com/coreruleset/go-ftw/releases/download/v${FTW_VERSION}/ftw_${FTW_VERSION}_linux_${arch}.tar.gz" \
+      | tar -xz -C /usr/local/bin ftw
+
+WORKDIR /tests
+COPY usr/local/share/ftw-tests/ /tests/
+
+CMD ["ftw", "run", "--cloud", "--debug"]

@@ -1,0 +1,175 @@
+---
+# Test PHP dangerous functions and deserialization
+meta:
+  author: "PHP WAF Team"
+  description: "PHP code execution / serialized object tests"
+  enabled: true
+  name: "028-php-attacks.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block preg_replace with /e"
+    desc: "preg_replace( triggers rule 1040"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=preg_replace(/.*/e)"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block create_function"
+    desc: "create_function( triggers rule 1040"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=create_function(null,alert(1))"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block call_user_func"
+    desc: "call_user_func( triggers rule 1040"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=call_user_func(system,id)"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Block assert"
+    desc: "assert( triggers rule 1040"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=assert(phpinfo())"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Block file_put_contents"
+    desc: "file_put_contents( triggers rule 1040"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=file_put_contents(shell.php,code)"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 6
+    test_title: "Block include"
+    desc: "include( triggers rule 1040"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=include(/etc/passwd)"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 7
+    test_title: "Block require_once"
+    desc: "require_once( triggers rule 1040"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=require_once(shell.php)"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 8
+    test_title: "Block PHP serialized object"
+    desc: "O:4: triggers rule 1041"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/x-www-form-urlencoded"
+          data: "data=O:4:\"User\":1:{s:4:\"name\";s:5:\"admin\";}"
+        output:
+          status: 403
+
+  - test_id: 9
+    test_title: "Block PHP serialized object in query"
+    desc: "O:12: in query triggers rule 1041"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?data=O:12:\"Symfony\":0:{}"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 10
+    test_title: "Allow benign text starting with O: but not object"
+    desc: "Non-serialized O: prefix passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?q=Order%3A%20pending"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 11
+    test_title: "Allow benign function-name substring"
+    desc: "Word 'include' without ( passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?section=include_policy"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

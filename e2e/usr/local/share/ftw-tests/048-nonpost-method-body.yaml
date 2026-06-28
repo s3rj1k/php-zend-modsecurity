@@ -1,0 +1,82 @@
+---
+# Test request body inspection for non POST methods (PATCH/PUT/DELETE ...).
+#
+# PHP only auto reads POST bodies via sapi_read_post_data, so for other methods
+# the body lives in php://input and is read just in time through the SAPI
+# read_post hook. waf_capture_request_body reads php://input in RINIT, which
+# captures the body AND leaves it in SG(request_info).request_body for the
+# application to read again later.
+meta:
+  author: "PHP WAF Team"
+  description: "Non POST method request body inspection tests"
+  enabled: true
+  name: "048-nonpost-method-body.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block blocked_content in PATCH body"
+    desc: "REQUEST_BODY @contains blocked_content fires on a non POST method"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "PATCH"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "text/plain"
+          data: "blocked_content"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Allow benign PATCH body"
+    desc: "A PATCH without blocked_content is allowed"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "PATCH"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "text/plain"
+          data: "just some benign text"
+        output:
+          status: 200
+
+  - test_id: 3
+    test_title: "Block blocked_content in PATCH JSON body"
+    desc: "JSON body on a non POST method is inspected"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "PATCH"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"data":"blocked_content"}'
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Block XXE in PATCH body"
+    desc: "REQUEST_BODY XXE rule fires on a non POST method body"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "PATCH"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/xml"
+          data: "<!DOCTYPE foo [<!ENTITY xxe SYSTEM \"http://evil.example\">]><foo>&xxe;</foo>"
+        output:
+          status: 403

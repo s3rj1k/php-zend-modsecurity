@@ -1,0 +1,237 @@
+---
+# Test Path traversal and sensitive file access
+meta:
+  author: "PHP WAF Team"
+  description: "Path traversal and sensitive file tests"
+  enabled: true
+  name: "027-path-sensitive.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block encoded backslash path traversal"
+    desc: "%5c variant triggers rule 1037"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?file=..%5c..%5cetc%5cpasswd"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block double-encoded backslash traversal"
+    desc: ".%5c variant triggers rule 1037"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?file=.%5c.%5c.%5cetc%5cpasswd"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block access to .htaccess"
+    desc: ".htaccess in URI triggers rule 1038"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/.htaccess"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Block access to .env"
+    desc: ".env in URI triggers rule 1038"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/.env"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Block access to .git/config"
+    desc: ".git in URI triggers rule 1038"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/.git/config"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 6
+    test_title: "Block access to wp-config.php"
+    desc: "wp-config.php triggers rule 1038"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/wp-config.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          # The bridge routes non-existent .php to the index.php front
+          # controller (HAProxy front-controller fallback to index.php), so PHP
+          # userland runs, the WAF hook fires, and rule 1038 blocks
+          # sensitive-file access with 403.
+          status: 403
+
+  - test_id: 7
+    test_title: "Block /etc/passwd in args"
+    desc: "/etc/passwd triggers rule 1039"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?file=/etc/passwd"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 8
+    test_title: "Block /etc/shadow in args"
+    desc: "/etc/shadow triggers rule 1039"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?file=/etc/shadow"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 9
+    test_title: "Block /etc/hosts in args"
+    desc: "/etc/hosts triggers rule 1039"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?file=/etc/hosts"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 10
+    test_title: "Block phpinfo probe"
+    desc: "/phpinfo triggers rule 1049"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/phpinfo"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 11
+    test_title: "Block phpmyadmin probe"
+    desc: "/phpmyadmin triggers rule 1049"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/phpmyadmin"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 12
+    test_title: "Block wp-admin probe"
+    desc: "/wp-admin triggers rule 1049"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/wp-admin"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 13
+    test_title: "Block .git/config probe"
+    desc: "/.git/config triggers rules 1038/1049"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/.git/config"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 14
+    test_title: "Allow normal file path in arg"
+    desc: "Regular relative path passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?file=docs/readme.txt"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 15
+    test_title: "Allow normal endpoint"
+    desc: "Regular endpoint passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?section=about"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

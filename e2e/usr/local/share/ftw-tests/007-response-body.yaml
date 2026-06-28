@@ -1,0 +1,55 @@
+---
+# Test Response body inspection
+meta:
+  author: "PHP WAF Team"
+  description: "Response body inspection tests"
+  enabled: true
+  name: "007-response-body.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Allow normal response"
+    desc: "Allow response without blocked content"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/response.php?action=normal"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 2
+    test_title: "Block response with blocked content"
+    desc: "Block response containing blocked_response_content"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/response.php?action=blocked"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block response with blocked content via POST"
+    desc: "Block POST response containing blocked_response_content"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/response.php?action=blocked"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{}'
+        output:
+          status: 403

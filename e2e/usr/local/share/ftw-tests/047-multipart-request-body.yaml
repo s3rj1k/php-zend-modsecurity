@@ -1,0 +1,64 @@
+---
+# Test multipart POST request body inspection.
+#
+# Multipart bodies are consumed by rfc1867 during sapi_activate (before RINIT),
+# so php://input is empty for them. The waf_read_post hook must tee the raw body
+# so phase 2 REQUEST_BODY rules can inspect it. These guard against the bug
+# where RINIT cleared the teed body (leak + lost inspection).
+meta:
+  author: "PHP WAF Team"
+  description: "Multipart request body inspection tests"
+  enabled: true
+  name: "047-multipart-request-body.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block blocked_content in multipart field value"
+    desc: "REQUEST_BODY @contains blocked_content fires on a multipart POST"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "multipart/form-data; boundary=wafboundary"
+          data: "--wafboundary\r\nContent-Disposition: form-data; name=\"field\"\r\n\r\nblocked_content\r\n--wafboundary--"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Allow benign multipart body"
+    desc: "A multipart POST without blocked_content is allowed"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "multipart/form-data; boundary=wafboundary"
+          data: "--wafboundary\r\nContent-Disposition: form-data; name=\"field\"\r\n\r\nhello world\r\n--wafboundary--"
+        output:
+          status: 200
+
+  - test_id: 3
+    test_title: "Block path traversal in multipart upload filename"
+    desc: "REQUEST_BODY multipart filename traversal rule fires on the teed raw body"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "multipart/form-data; boundary=wafboundary"
+          data: "--wafboundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"../etc/passwd\"\r\n\r\nx\r\n--wafboundary--"
+        output:
+          status: 403

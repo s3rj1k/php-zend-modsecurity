@@ -1,0 +1,40 @@
+---
+# Test Normal requests should pass through
+meta:
+  author: "PHP WAF Team"
+  description: "Normal request tests"
+  enabled: true
+  name: "001-normal-requests.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Normal GET request should pass"
+    desc: "Normal GET request should pass"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?normal=true"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 2
+    test_title: "Normal POST request should pass"
+    desc: "Normal POST request should pass"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"valid":"data"}'
+        output:
+          status: 200

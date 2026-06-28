@@ -1,0 +1,100 @@
+---
+# Test Response body leak detection and XFF spoofing
+meta:
+  author: "PHP WAF Team"
+  description: "Response leak / XFF tests"
+  enabled: true
+  name: "031-leaks-xff.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block stack trace leak in response"
+    desc: "Python traceback triggers rule 1050"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/leak.php?type=trace"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block SQL error leak in response"
+    desc: "MySQL syntax error triggers rule 1051"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/leak.php?type=sql"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Allow clean response body"
+    desc: "Clean leak.php response passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/leak.php?type=clean"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 4
+    test_title: "Block XFF spoofing to 127.0.0.1"
+    desc: "X-Forwarded-For: 127.0.0.1 triggers rule 1048"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            X-Forwarded-For: "127.0.0.1"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Allow non-spoofed XFF"
+    desc: "Public XFF value passes rule 1048"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            X-Forwarded-For: "203.0.113.5"
+        output:
+          status: 200
+
+  - test_id: 6
+    test_title: "Allow request without XFF header"
+    desc: "No XFF header passes rule 1048"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

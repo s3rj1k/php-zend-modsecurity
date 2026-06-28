@@ -1,0 +1,57 @@
+# PHP extension build artifacts (phpize/autoconf)
+.libs/
+autom4te.cache/
+build/
+include/
+modules/
+*.lo
+*.la
+*.dep
+*.o
+
+# Autoconf generated files
+config.h
+config.log
+config.nice
+config.status
+configure
+libtool
+Makefile
+Makefile.fragments
+Makefile.objects
+
+# Backup files
+*~
+*.bak
+config.h.in~
+
+# PHP test runner
+run-tests.php
+
+# Runtime generated
+dumps/
+
+# Static analysis results
+results/
+
+# Editor/IDE
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Agent instruction file
+AGENTS.md
+
+# Stack artifacts (e2e runtime swap dir + outputs)
+e2e/runtime/
+e2e/results/
+e2e/logs/

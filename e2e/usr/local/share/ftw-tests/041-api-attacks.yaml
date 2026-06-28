@@ -1,0 +1,246 @@
+---
+# Test API attacks GraphQL, mass assignment, pollution, deserialization
+meta:
+  author: "PHP WAF Team"
+  description: "API/GraphQL/deserialization tests"
+  enabled: true
+  name: "041-api-attacks.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block GraphQL introspection (__schema)"
+    desc: "__schema in body triggers rule 1084"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/api.php?action=graphql"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"query":"{__schema{types{name}}}"}'
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block GraphQL introspection (__type)"
+    desc: "__type( in body triggers rule 1084"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/api.php?action=graphql"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"query":"{__type(name:\"User\"){name}}"}'
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block GraphQL batched mutation abuse"
+    desc: "Two mutations triggers rule 1085"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/api.php?action=graphql"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"query":"mutation a { createUser } mutation b { deleteUser }"}'
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Block mass assignment of role"
+    desc: "\"role\":true triggers rule 1086"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/api.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"name":"x","role":true}'
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Block mass assignment of is_admin"
+    desc: "\"is_admin\":1 triggers rule 1086"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/api.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"name":"x","is_admin":1}'
+        output:
+          status: 403
+
+  - test_id: 6
+    test_title: "Block prototype pollution (__proto__)"
+    desc: "__proto__ in body triggers rule 1088"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/api.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"__proto__":{"isAdmin":true}}'
+        output:
+          status: 403
+
+  - test_id: 7
+    test_title: "Block constructor pollution"
+    desc: "\"constructor\":{\" triggers rule 1089"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/api.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"constructor":{"prototype":{"isAdmin":true}}}'
+        output:
+          status: 403
+
+  - test_id: 8
+    test_title: "Block YAML deserialization gadget"
+    desc: "!!python/object triggers rule 1090"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/api.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"payload":"!!python/object/apply:os.system"}'
+        output:
+          status: 403
+
+  - test_id: 9
+    test_title: "Block Python pickle gadget"
+    desc: "pickle.loads triggers rule 1091"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/api.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"payload":"pickle.loads(data)"}'
+        output:
+          status: 403
+
+  - test_id: 10
+    test_title: "Block Java serialized object"
+    desc: "rO0AB magic triggers rule 1092"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/api.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/octet-stream"
+          data: "rO0ABXNyABFqYXZhLnV0aWwuTGlzdA=="
+        output:
+          status: 403
+
+  - test_id: 11
+    test_title: "Block .NET ViewState marker"
+    desc: "__VIEWSTATE triggers rule 1093"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/api.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/x-www-form-urlencoded"
+          data: "__VIEWSTATE=/wEPDwUKLTE2MjY5OTY="
+        output:
+          status: 403
+
+  - test_id: 12
+    test_title: "Allow benign GraphQL query"
+    desc: "Normal query passes rule 1084"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/api.php?action=graphql"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"query":"{ user { id name } }"}'
+        output:
+          status: 200
+
+  - test_id: 13
+    test_title: "Allow benign user JSON without privileged fields"
+    desc: "Normal user JSON passes rule 1086"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/api.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"name":"Alice","email":"a@b.com"}'
+        output:
+          status: 200
+
+  - test_id: 14
+    test_title: "Allow benign JSON without proto/constructor"
+    desc: "Normal JSON passes pollution rules"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/api.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"items":[1,2,3],"total":3}'
+        output:
+          status: 200

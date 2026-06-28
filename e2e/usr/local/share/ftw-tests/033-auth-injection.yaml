@@ -1,0 +1,104 @@
+---
+# Test Authorization header injection
+meta:
+  author: "PHP WAF Team"
+  description: "Auth header injection tests"
+  enabled: true
+  name: "033-auth-injection.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block Authorization header with semicolon"
+    desc: "; in Authorization triggers rule 1059"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/headers.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Authorization: "Basic foo;ls"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block Authorization header with backticks"
+    desc: "backtick in Authorization triggers rule 1059"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/headers.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Authorization: "Basic foo`bar"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block Authorization header with command substitution"
+    desc: "$() in Authorization triggers rule 1059"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/headers.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Authorization: "Basic $(id)"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Block Authorization header with pipe"
+    desc: "| in Authorization triggers rule 1059"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/headers.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Authorization: "Basic foo|bar"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Allow normal Basic auth"
+    desc: "Clean Basic auth passes rule 1059"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/headers.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Authorization: "Basic dXNlcjpwYXNz"
+        output:
+          status: 200
+
+  - test_id: 6
+    test_title: "Allow Bearer token"
+    desc: "Clean Bearer token passes rule 1059"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/headers.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Authorization: "Bearer eyJhbGciOiJIUzI1NiJ9.payload.signature"
+        output:
+          status: 200

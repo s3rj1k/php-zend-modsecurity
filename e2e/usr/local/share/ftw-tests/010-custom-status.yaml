@@ -1,0 +1,38 @@
+---
+# Test Custom block status codes and status text
+meta:
+  author: "PHP WAF Team"
+  description: "Per-rule status code tests"
+  enabled: true
+  name: "010-custom-status.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block with custom 404 status (rule 1011)"
+    desc: "/forbidden-custom path returns 404, not the default 403"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/forbidden-custom"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 404
+
+  - test_id: 2
+    test_title: "Default 403 still applies to other rules"
+    desc: "Admin path returns 403 (rule 1006)"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/admin/login"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403

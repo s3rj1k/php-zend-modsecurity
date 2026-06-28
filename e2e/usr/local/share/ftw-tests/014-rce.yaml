@@ -1,0 +1,98 @@
+---
+# Test Remote code execution detection
+meta:
+  author: "PHP WAF Team"
+  description: "RCE pattern detection tests"
+  enabled: true
+  name: "014-rce.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block system() call in query arg"
+    desc: "system( in arg triggers rule 1015"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?cmd=system(id)"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block exec() call in query arg"
+    desc: "exec( in arg triggers rule 1015"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?cmd=exec(whoami)"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block base64_decode() call in query arg"
+    desc: "base64_decode( in arg triggers rule 1015"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?payload=base64_decode(c2VjcmV0)"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Block backtick shell execution in query arg"
+    desc: "Backtick operator in arg triggers rule 1015"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?cmd=%60id%60"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Block superglobal reference in query arg"
+    desc: "$_GET[ in arg triggers rule 1015"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?x=%24_GET%5Bcmd%5D"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 6
+    test_title: "Allow benign command-like text that is not a call"
+    desc: "Plain word 'system' without parentheses should not match"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?topic=system_design"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

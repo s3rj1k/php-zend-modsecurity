@@ -1,0 +1,83 @@
+---
+# Test Log injection and HTTP response splitting
+meta:
+  author: "PHP WAF Team"
+  description: "Log/response splitting tests"
+  enabled: true
+  name: "036-log-splitting.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block log injection with fake GET line"
+    desc: "%0aGET in arg triggers rule 1064"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?q=test%0aGET%20/admin%20HTTP/1.1"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block log injection with User-Agent line"
+    desc: "%0aUser-Agent: in arg triggers rule 1064"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?q=x%0aUser-Agent:%20evil"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block HTTP response splitting (Location)"
+    desc: "%0d%0aLocation: triggers rule 1065"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?next=x%0d%0aLocation:%20http://evil"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Block HTTP response splitting (Set-Cookie)"
+    desc: "%0d%0aSet-Cookie: triggers rule 1065"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?next=x%0d%0aSet-Cookie:%20evil=1"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Allow benign value with newline-free text"
+    desc: "Plain text without newlines passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?q=plain%20text%20value"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

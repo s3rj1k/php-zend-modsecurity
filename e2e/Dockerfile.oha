@@ -1,0 +1,3 @@
+# oha (https //github.com/hatoo/oha) Rust/tokio HTTP load generator
+FROM ghcr.io/hatoo/oha:latest
+ENTRYPOINT ["oha"]

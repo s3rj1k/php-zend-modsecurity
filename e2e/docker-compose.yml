@@ -1,0 +1,74 @@
+name: waf
+
+# Shared HAProxy + php fpm (waf extension) stack. run.sh swaps scenarios via
+# ./runtime/ bind mounts without rebuilding. Two optional services via profiles
+#   profile test   go-ftw YAML test runner (Dockerfile.ftw)
+#   profile bench  oha load generator (Dockerfile.oha)
+
+services:
+
+  # Lenient HTTP -> FastCGI front end so the WAF (in php-fpm) is the verifier.
+  bridge:
+    image: haproxy:3.4-alpine
+    container_name: waf_bridge
+    depends_on:
+      - php-fpm
+    volumes:
+      - ./etc/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./var/www/html:/var/www/html:ro
+    ports:
+      - '127.0.0.1:8080:80'
+    networks:
+      - waf_net
+    restart: unless-stopped
+
+  php-fpm:
+    build:
+      context: ..
+      dockerfile: e2e/Dockerfile
+    container_name: waf_php
+    volumes:
+      - ./var/www/html:/var/www/html:ro
+      - ./runtime/usr/local/etc/php/conf.d/zz-waf.ini:/usr/local/etc/php/conf.d/zz-waf.ini:ro
+      - ./runtime/etc/modsecurity/rules.conf:/etc/modsecurity/rules.conf:ro
+      - ./runtime/etc/modsecurity/crs:/etc/modsecurity/crs:ro
+      - ./runtime/etc/modsecurity/crs-load.conf:/etc/modsecurity/crs-load.conf:ro
+      - modsec_logs:/var/log
+    networks:
+      - waf_net
+    restart: unless-stopped
+
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.ftw
+    container_name: waf_test
+    depends_on:
+      - bridge
+      - php-fpm
+    volumes:
+      - ./usr/local/share/ftw-tests:/tests:ro
+    networks:
+      - waf_net
+    profiles:
+      - test
+
+  oha:
+    build:
+      context: .
+      dockerfile: Dockerfile.oha
+    depends_on:
+      - bridge
+    networks:
+      - waf_net
+    profiles:
+      - bench
+    # Overridden by run.sh per scenario, default is a no op so `up` alone is safe.
+    command: ["--version"]
+
+networks:
+  waf_net:
+    driver: bridge
+
+volumes:
+  modsec_logs:

@@ -1,0 +1,133 @@
+---
+# Test False positive control benign requests that must NOT be blocked
+meta:
+  author: "PHP WAF Team"
+  description: "Negative tests confirming benign traffic passes"
+  enabled: true
+  name: "021-benign-control.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Plain GET with simple query passes"
+    desc: "Ordinary query parameter"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?page=about"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 2
+    test_title: "GET with realistic search query passes"
+    desc: "Search-style query"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?q=how+to+use+modsecurity+rules"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 3
+    test_title: "POST JSON form with normal fields passes"
+    desc: "Benign JSON body"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/json"
+          data: '{"name":"Alice","email":"alice@example.com","age":30}'
+        output:
+          status: 200
+
+  - test_id: 4
+    test_title: "POST urlencoded form with normal fields passes"
+    desc: "Benign urlencoded body"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "POST"
+          uri: "/post.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Content-Type: "application/x-www-form-urlencoded"
+          data: "username=bob&password=correct-horse-battery-staple"
+        output:
+          status: 200
+
+  - test_id: 5
+    test_title: "Request with normal Cookie passes"
+    desc: "Session cookie, not suspicious"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Cookie: "session=abc123def456; theme=dark"
+        output:
+          status: 200
+
+  - test_id: 6
+    test_title: "Normal browser User-Agent passes"
+    desc: "Regular browser UA is not a scanner"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php"
+          headers:
+            User-Agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 7
+    test_title: "GET with numeric id passes"
+    desc: "Numeric parameter"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?id=42"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 8
+    test_title: "Root path passes"
+    desc: "Bare root request"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

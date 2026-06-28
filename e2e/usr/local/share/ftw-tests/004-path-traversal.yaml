@@ -1,0 +1,68 @@
+---
+# Test Path traversal detection
+meta:
+  author: "PHP WAF Team"
+  description: "Path traversal attack detection tests"
+  enabled: true
+  name: "004-path-traversal.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Path traversal - basic"
+    desc: "Path traversal - basic"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?file=../../../etc/passwd"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Path traversal - URL encoded"
+    desc: "Path traversal - URL encoded"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?file=%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Path traversal - double encoded"
+    desc: "Path traversal - double encoded"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?file=%252e%252e%252f%252e%252e%252fetc%252fpasswd"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Path traversal - null byte injection"
+    desc: "Path traversal - null byte injection"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?file=../../../etc/passwd%00.jpg"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403

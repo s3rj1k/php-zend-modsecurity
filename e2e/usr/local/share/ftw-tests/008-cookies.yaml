@@ -1,0 +1,71 @@
+---
+# Test Cookie inspection and blocking
+meta:
+  author: "PHP WAF Team"
+  description: "Cookie-based blocking tests"
+  enabled: true
+  name: "008-cookies.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block request with suspicious cookie value"
+    desc: "Cookie 'suspicious_cookie=malicious' should be blocked (rule 1009)"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/echo.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Cookie: "suspicious_cookie=malicious"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Allow request with benign cookie value"
+    desc: "Cookie with a different value should pass"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/echo.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Cookie: "suspicious_cookie=harmless"
+        output:
+          status: 200
+
+  - test_id: 3
+    test_title: "Allow request with no cookies"
+    desc: "Request with no Cookie header should pass"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/echo.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 4
+    test_title: "Block when suspicious cookie among multiple cookies"
+    desc: "Suspicious cookie present alongside benign cookies should block"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/echo.php"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+            Cookie: "session=abc; suspicious_cookie=malicious; theme=dark"
+        output:
+          status: 403

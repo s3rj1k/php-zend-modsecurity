@@ -1,0 +1,83 @@
+---
+# Test SSRF detection
+meta:
+  author: "PHP WAF Team"
+  description: "SSRF attempt blocking tests"
+  enabled: true
+  name: "016-ssrf.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block SSRF to localhost"
+    desc: "http://localhost in arg triggers rule 1017"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?url=http://localhost/admin"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block SSRF to 127.0.0.1"
+    desc: "http://127.0.0.1 in arg triggers rule 1017"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?url=http://127.0.0.1:8080"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block SSRF to AWS metadata endpoint"
+    desc: "169.254.169.254 metadata host triggers rule 1017"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?url=http://169.254.169.254/latest/meta-data/"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Block SSRF to private 10.x range"
+    desc: "http://10.0.0.1 in arg triggers rule 1017"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?url=http://10.0.0.1/"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Allow external URL in arg"
+    desc: "Public URL should not be blocked"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?url=https://example.com/api"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

@@ -1,0 +1,173 @@
+---
+# Test SQL injection evasion variants
+meta:
+  author: "PHP WAF Team"
+  description: "SQLi comment/hex/boolean/time-based tests"
+  enabled: true
+  name: "025-sqli-advanced.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Block SQL comment evasion (--)"
+    desc: "-- truncation triggers rule 1029"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?id=1--"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Block SQL comment evasion (/* */)"
+    desc: "Inline comment triggers rule 1029"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?id=1/**/OR/**/1=1"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block SQL hex-encoded payload"
+    desc: "0x with 8+ hex chars triggers rule 1030"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?id=0x4141414141414141"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 4
+    test_title: "Block boolean-based blind SQLi (AND 1=1)"
+    desc: "AND 1=1 triggers rule 1031"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?id=1%20AND%201=1"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 5
+    test_title: "Block boolean-based blind SQLi (OR 1=2)"
+    desc: "OR 1=2 triggers rule 1031"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?id=1%20OR%201=2"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 6
+    test_title: "Block SQL CASE/WHEN"
+    desc: "CASE WHEN triggers rule 1032"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?id=CASE%20WHEN%201=1"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 7
+    test_title: "Block SLEEP time-based SQLi"
+    desc: "SLEEP( triggers rule 1033"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?id=SLEEP(5)"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 8
+    test_title: "Block BENCHMARK time-based SQLi"
+    desc: "BENCHMARK( triggers rule 1033"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?id=BENCHMARK(1000000,MD5(1))"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 9
+    test_title: "Block WAITFOR DELAY time-based SQLi"
+    desc: "WAITFOR DELAY triggers rule 1033"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?id=WAITFOR%20DELAY%200:0:5"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 10
+    test_title: "Allow benign numeric id"
+    desc: "Plain number passes"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?id=42"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200
+
+  - test_id: 11
+    test_title: "Allow benign hex-looking short value"
+    desc: "Short 0x value (under 8 hex) passes rule 1030"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/index.php?color=0xFF"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 200

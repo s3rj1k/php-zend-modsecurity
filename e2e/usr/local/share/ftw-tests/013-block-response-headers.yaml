@@ -1,0 +1,86 @@
+---
+# Test Block response body content
+meta:
+  author: "PHP WAF Team"
+  description: "Block response body tests"
+  enabled: true
+  name: "013-block-response-headers.yaml"
+
+tests:
+  - test_id: 1
+    test_title: "Request-phase block returns 403"
+    desc: "Admin path blocked at request phase"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/admin/login"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 2
+    test_title: "Response-phase block returns 403"
+    desc: "Blocked response content triggers phase 6 block"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/response.php?action=blocked"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+
+  - test_id: 3
+    test_title: "Block page body mentions the WAF"
+    desc: "Block page mentions ModSecurity Web Application Firewall"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/admin/login"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+          response_contains: "ModSecurity Web Application Firewall"
+
+  - test_id: 4
+    test_title: "Block page body contains Transaction ID label"
+    desc: "Block page renders the Transaction ID field"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/admin/login"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+          response_contains: "Transaction ID:"
+
+  - test_id: 5
+    test_title: "Response-phase block page also contains Transaction ID"
+    desc: "Response-phase block keeps the transaction id (not 'unknown')"
+    stages:
+      - input:
+          dest_addr: "bridge"
+          port: 80
+          method: "GET"
+          uri: "/response.php?action=blocked"
+          headers:
+            User-Agent: "FTW Test Client"
+            Host: "localhost"
+        output:
+          status: 403
+          response_contains: "Transaction ID:"
